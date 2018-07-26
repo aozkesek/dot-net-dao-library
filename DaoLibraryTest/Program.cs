@@ -20,9 +20,7 @@ namespace DaoLibraryTest
 				.SetBasePath(Directory.GetCurrentDirectory())
 				.AddJsonFile("appsettings.json")
 				.Build();
-
-			Console.WriteLine(ConnectionString);
-
+                
 			List<Task<Counter>> tasks = new List<Task<Counter>>();
 
 			PrintCount();
