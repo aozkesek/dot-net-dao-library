@@ -1,6 +1,7 @@
 
 using System;
 using System.IO;
+using Microsoft.Extensions.Configuration;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 
@@ -8,14 +9,19 @@ namespace DaoLibraryTest
 {
 	class Program
 	{
-
-
-		public static string ConnectionString { get { return "Server=172.18.0.5;Port=5432;Pooling=true;Database=postgres;Userid=daolib;Password=dao.lib+;"; } }
-
+		public static IConfiguration Configuration;
+		public static string ConnectionString { get { return Configuration["connectionstrings:postgres"]; } }      
 		public static Counter ResultCounters = new Counter();
 
         static void Main(string[] args)
         {
+
+			Configuration = new ConfigurationBuilder()
+				.SetBasePath(Directory.GetCurrentDirectory())
+				.AddJsonFile("appsettings.json")
+				.Build();
+
+			Console.WriteLine(ConnectionString);
 
 			List<Task<Counter>> tasks = new List<Task<Counter>>();
 
