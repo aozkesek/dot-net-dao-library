@@ -7,29 +7,29 @@ using System.Collections.Generic;
 
 namespace DaoLibraryTest
 {
-	class Program
-	{
-		public static IConfiguration Configuration;
-		public static string ConnectionString { get { return Configuration["connectionstrings:postgres"]; } }      
-		public static Counter ResultCounters = new Counter();
+class Program
+{
+	public static IConfiguration Configuration;
+	public static string ConnectionString { get { return Configuration["connectionstrings:postgres"]; } }      
+	public static Counter ResultCounters = new Counter();
 
         static void Main(string[] args)
         {
 
-			Configuration = new ConfigurationBuilder()
-				.SetBasePath(Directory.GetCurrentDirectory())
-				.AddJsonFile("appsettings.json")
-				.Build();
+		Configuration = new ConfigurationBuilder()
+			.SetBasePath(Directory.GetCurrentDirectory())
+			.AddJsonFile("appsettings.json")
+			.Build();
 
-			Console.WriteLine(ConnectionString);
+		Console.WriteLine(ConnectionString);
 
-			List<Task<Counter>> tasks = new List<Task<Counter>>();
+		List<Task<Counter>> tasks = new List<Task<Counter>>();
 
-			PrintCount();
+		PrintCount();
 
-			PersonDao pd = new PersonDao();
+		PersonDao pd = new PersonDao();
 
-			int k = pd.Count();
+		int k = pd.Count();
             for (int i = 0; i < 32; i++)
             {
                 Person p = new Person() { Name = "person." + k + i, Surname = "surname." };

@@ -1,8 +1,9 @@
-properties/
-packages/
-bin/
-obj/
-.vs/
-*.userprefs
+**/properties/
+**/packages/
+**/bin/
+**/obj/
+**/.vs/
+**/*.userprefs
+**/.vscode/
 
 
