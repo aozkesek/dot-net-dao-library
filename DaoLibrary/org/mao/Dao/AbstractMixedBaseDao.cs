@@ -32,8 +32,8 @@ namespace org.mao.Dao
 
 		public override TEntity Create(TEntity model)
 		{
-			model.CreateDateTime = DateTime.Now;
-			model.LastUpdateDateTime = DateTime.Now;
+			model.CreateDateTime = DateTime.UtcNow;
+			model.LastUpdateDateTime = DateTime.UtcNow;
 
 			return base.Create(model);
 		}
@@ -41,7 +41,7 @@ namespace org.mao.Dao
 
 		public override TEntity Update(TEntity model)
 		{
-			model.LastUpdateDateTime = DateTime.Now;
+			model.LastUpdateDateTime = DateTime.UtcNow;
 
 			return base.Update(model);
 		}

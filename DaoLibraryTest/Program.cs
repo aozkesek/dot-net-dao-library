@@ -1,9 +1,12 @@
 
 using System;
 using System.IO;
+using System.Diagnostics;
 using Microsoft.Extensions.Configuration;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 
 namespace DaoLibraryTest
 {
@@ -13,8 +16,8 @@ class Program
 	public static string ConnectionString { get { return Configuration["connectionstrings:postgres"]; } }      
 	public static Counter ResultCounters = new Counter();
 
-        static void Main(string[] args)
-        {
+	static void Main(string[] args)
+	{
 
 		Configuration = new ConfigurationBuilder()
 			.SetBasePath(Directory.GetCurrentDirectory())
@@ -23,123 +26,143 @@ class Program
 
 		Console.WriteLine(ConnectionString);
 
-		List<Task<Counter>> tasks = new List<Task<Counter>>();
+		TaskScheduler taskScheduler = TaskScheduler.Current;
+
+		ConcurrentBag<Task<Counter>> tasks = new ConcurrentBag<Task<Counter>>();
 
 		PrintCount();
 
 		PersonDao pd = new PersonDao();
 
 		int k = pd.Count();
-            for (int i = 0; i < 32; i++)
-            {
-                Person p = new Person() { Name = "person." + k + i, Surname = "surname." };
-                p.Phones = new List<Phone>() { 
-					new Phone() { CountryCode = "90", AreaCode = "555", PhoneNumber = "1234567", Person = p }
-					, new Phone() { CountryCode = "90", AreaCode = "222", PhoneNumber = "7654321", Person = p }
-					};
-                p.Addresses = new List<Address>() { 
-					new Address() { Country = "TR", City = "IST", County = "CEKMEKOY", Person = p } 
-					, new Address() { Country = "TR", City = "IST", County = "KADIKOY", Person = p }};
-                pd.Create(p);
-            }
-
-            PrintCount();
-
-			int p1 = PersonDao.PageNumber(pd.Count(), pd.PageSize);
-			int p2 = PersonDao.PageNumber(pd.Count(new Person(){Surname="surname."}), pd.PageSize);
-			List<Person> pl = pd.Read(new Person() { Surname = "surname." }, p2);
-            pl.ForEach((Person p) => {
-                Console.WriteLine(p);
-				((List<Address>)p.Addresses).ForEach ((Address a) => Console.WriteLine(a));
-                ((List<Phone>)p.Phones).ForEach ((Phone ph) => Console.WriteLine(ph));
-            });
- 
-			for (int i = 0; i < 64; i++)
-			{
-				Task<Counter> t = new Task<Counter>((pi) => { return CRUDTest(pi.ToString()); }, "people-" + i);
-				t.Start();
-				tasks.Add(t);
-
-			}
-
-            try { Task.WaitAll(tasks.ToArray()); } catch (Exception e) { Console.WriteLine(e); };
-
-            tasks.ForEach((Task<Counter> task) => { try { Console.WriteLine(task.Result); } catch (Exception e) { Console.WriteLine(e); } });
-
-			PrintCount();
-
+		for (int i = 0; i < 32; i++) {
+			Person p = new Person() { Name = "person." + k + i, Surname = "surname." };
+			p.Phones = new List<Phone>() { 
+				new Phone() { CountryCode = "90", AreaCode = "555", PhoneNumber = "1234567", Person = p }
+				, new Phone() { CountryCode = "90", AreaCode = "222", PhoneNumber = "7654321", Person = p }};
+			p.Addresses = new List<Address>() { 
+				new Address() { Country = "TR", City = "IST", County = "CEKMEKOY", Person = p } 
+				, new Address() { Country = "TR", City = "IST", County = "KADIKOY", Person = p }};
+			pd.Create(p);
 		}
 
-		public static void PrintCount()
-		{
-			Console.WriteLine(
-				string.Format("[{0} : {1} : {2}]",
-							  DateTime.Now, new PersonDao().Count(), DateTime.Now)
-			);
-		}
+		PrintCount();
 
-		public static Counter CRUDTest(string person)
-		{
-            string name = new string(person.ToCharArray());
-            string surname = name + "-surname";
-			string surnameupdated = surname + "-updated";
-
-			Counter counter = new Counter();
-			counter.Start = DateTime.Now;
-			counter.Name = "crudtest for " + person;
-
-			PersonDao personDao = new PersonDao();
-
-			personDao.PageSize = 10;
-
-			for (int k = 0; k < 64; k++)
-            {
-				try {
-                    Person p = new Person();
-                    p.Name = name + "-" + k;
-                    p.Surname = surname;
-                    p.Phones = new List<Phone>() { new Phone() { AreaCode="532", PhoneNumber="1234567", Person=p } };
-                    p.Addresses = new List<Address>() { new Address() { City="istanbul", County="cekmekoy", Person=p } };
-                    personDao.Create(p); 
-                }
-				catch (Exception e) { Console.WriteLine(counter.Name + "<>" + e.Message); }
-			}
-                
-			counter.Create = personDao.Count(new Person() { Surname = surname });
-			int totalPage = PersonDao.PageNumber(counter.Create, personDao.PageSize);
-
-			counter.Read = 0;
-			for (int j = 1; j <= totalPage; j++)
-            {
-                try { counter.Read += personDao.Read(new Person() { Surname = surname }, j).Count; }
-                catch(Exception e) { Console.WriteLine(counter.Name + "<>" + e.Message); }
-            }
-				
-			List<Person> pList = personDao.Read(new Person() { Surname = surname });
-			pList.ForEach((Person p) =>
-			{
-				p.Surname = surnameupdated;
-                //if (p.Addresses != null)
-                    p.Addresses[0].County = "UMRANIYE";
-                //if (p.Phones != null)
-                    p.Phones[0].PhoneNumber = "1098765";
-				try { personDao.Update(p); } catch (Exception e) { Console.WriteLine(counter.Name + "<>" + e.Message); }
+		int p1 = PersonDao.PageNumber(pd.Count(), pd.PageSize);
+		int p2 = PersonDao.PageNumber(pd.Count(new Person(){Surname="surname."}), pd.PageSize);
+		List<Person> pl = pd.Read(new Person() { Surname = "surname." }, p2);
+		pl.ForEach((Person p) => {
+			Console.WriteLine(p);
+			((List<Address>)p.Addresses).ForEach ((Address a) => Console.WriteLine(a));
+			((List<Phone>)p.Phones).ForEach ((Phone ph) => Console.WriteLine(ph));
 			});
+ 
+		for (int i = 0; i < 128; i++)
+			tasks.Add(new Task<Counter>((pi) => { return CRUDTest(pi.ToString()); }, "people-" + i));
 
-			counter.Update = personDao.Read(new Person() { Surname = surnameupdated }).Count;
+		Console.WriteLine("all tasks are created...");
+		Stopwatch tm = Stopwatch.StartNew();
+		foreach (var t in tasks)
+			t.Start();
+		Console.WriteLine("all tasks are started...");
+			
+		try { 
+			Task.WaitAll(tasks.ToArray()); 
+		} catch (Exception e) { 
+			Console.WriteLine(e); 
+		};
+		tm.Stop();
+		
+		foreach (var t in tasks ) { 
+			try { 
+				Console.WriteLine(t.Result); 
+			} catch (Exception e) { 
+				Console.WriteLine(e); 
+			} 
+		};
 
-            try 
-            { counter.Delete = personDao.Delete(new Person() { Surname = surname }).Count; }
-            catch (Exception e) { Console.WriteLine(e); }
+		Console.WriteLine(tm.ElapsedMilliseconds);
+		PrintCount();
 
-			try
-			{ counter.Delete += personDao.Delete(new Person() { Surname = surnameupdated }).Count; }
-			catch (Exception e) { Console.WriteLine(e); }
+	}
 
-			counter.Finish = DateTime.Now;
+	public static void PrintCount()
+	{
+		Console.WriteLine(
+			string.Format("[{0} : {1} : {2}]",
+				DateTime.UtcNow, new PersonDao().Count(), DateTime.UtcNow)
+		);
+	}
 
-			return counter;
+	public static Counter CRUDTest(string person)
+	{
+		string name = new string(person.ToCharArray());
+		string surname = name + "-surname";
+		string surnameupdated = surname + "-updated";
+
+		Counter counter = new Counter();
+		counter.Start = DateTime.UtcNow;
+		counter.Name = "crudtest for " + person;
+
+		PersonDao personDao = new PersonDao();
+
+		personDao.PageSize = 10;
+
+		for (int k = 0; k < 64; k++) {
+			try {
+				Person p = new Person();
+				p.Name = name + "-" + k;
+				p.Surname = surname;
+				p.Phones = new List<Phone>() { new Phone() { AreaCode="532", PhoneNumber="1234567", Person=p } };
+				p.Addresses = new List<Address>() { new Address() { City="istanbul", County="cekmekoy", Person=p } };
+				personDao.Create(p); 
+			}
+			catch (Exception e) { 
+				Console.WriteLine(counter.Name + "<>" + e.Message); 
+			}
 		}
+
+		counter.Create = personDao.Count(new Person() { Surname = surname });
+		int totalPage = PersonDao.PageNumber(counter.Create, personDao.PageSize);
+
+		counter.Read = 0;
+		for (int j = 1; j <= totalPage; j++) {
+			try { 
+				counter.Read += personDao.Read(new Person() { Surname = surname }, j).Count; 
+			}
+			catch(Exception e) { 
+				Console.WriteLine(counter.Name + "<>" + e.Message); 
+			}
+		}
+
+		List<Person> pList = personDao.Read(new Person() { Surname = surname });
+		pList.ForEach((Person p) => {
+			p.Surname = surnameupdated;
+			p.Addresses[0].County = "UMRANIYE";
+			p.Phones[0].PhoneNumber = "1098765";
+			try { 
+				personDao.Update(p); 
+			} 
+			catch (Exception e) { 
+				Console.WriteLine(counter.Name + "<>" + e.Message); 
+			}});
+
+		counter.Update = personDao.Read(new Person() { Surname = surnameupdated }).Count;
+
+		try { 
+			counter.Delete = personDao.Delete(new Person() { Surname = surname }).Count; 
+		}
+		catch (Exception e) { Console.WriteLine(e); }
+
+		try { 
+			counter.Delete += personDao.Delete(new Person() { Surname = surnameupdated }).Count; 
+		}
+		catch (Exception e) { Console.WriteLine(e); }
+
+		counter.Finish = DateTime.UtcNow;
+
+		return counter;
+	}
 
 	}
 
